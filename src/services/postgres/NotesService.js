@@ -7,9 +7,12 @@ const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
 const AuthorizationError = require('../../exceptions/AuthorizationError');
 
+const collaborationService = require('./CollaborationsService');
+
 class NotesService {
   constructor() {
-    this._pool = new Pool();
+    this.pool = new Pool();
+    this.collaborationService = collaborationService;
   }
 
   async addNote(title, body, tags, owner) {
@@ -22,7 +25,7 @@ class NotesService {
       values: [id, title, body, tags, createdAt, updatedAt, owner],
     };
 
-    const result = await this._pool.query(query);
+    const result = await this.pool.query(query);
 
     if (!result.rows[0].id) {
       throw new InvariantError('Catatan gagal ditambahkan');
@@ -33,21 +36,26 @@ class NotesService {
 
   async getNotes(owner) {
     const query = {
-      text: 'SELECT * FROM notes WHERE owner = $1',
+      text: `SELECT notes.* FROM notes
+      LEFT JOIN collaborations ON collaborations.note_id = notes.id
+      WHERE notes.owner = $1 OR collaborations.user_id = $1
+      GROUP BY notes.id`,
       values: [owner],
     };
-
-    const result = await this._pool.query(query);
+    const result = await this.pool.query(query);
     return result.rows.map(mapDBToModel);
   }
 
   async getNoteById(id, owner) {
     const query = {
-      text: 'SELECT * FROM notes WHERE id = $1 AND owner = $2',
-      values: [id, owner],
+      text: `SELECT notes.*, users.username
+      FROM notes
+      LEFT JOIN users ON users.id = notes.owner
+      WHERE notes.id = $1`,
+      values: [id],
     };
 
-    const result = await this._pool.query(query);
+    const result = await this.pool.query(query);
 
     if (!result.rows.length) {
       throw new NotFoundError('Catatan tidak ditemukan');
@@ -63,7 +71,7 @@ class NotesService {
       values: [title, body, tags, updatedAt, id],
     };
 
-    const result = await this._pool.query(query);
+    const result = await this.pool.query(query);
 
     if (!result.rows.length) {
       throw new NotFoundError('Gagal memperbarui catatan. Id tidak ditemukan');
@@ -76,7 +84,7 @@ class NotesService {
       values: [id],
     };
 
-    const result = await this._pool.query(query);
+    const result = await this.pool.query(query);
 
     if (!result.rows.length) {
       throw new NotFoundError('Catatan gagal dihapus. Id tidak ditemukan');
@@ -89,7 +97,7 @@ class NotesService {
       values: [id],
     };
 
-    const result = await this._pool.query(query);
+    const result = await this.pool.query(query);
 
     if (!result.rows.length) {
       throw new NotFoundError('Catatan tidak ditemukan');
@@ -99,6 +107,22 @@ class NotesService {
 
     if (note.owner !== owner) {
       throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
+    }
+  }
+
+  async verifyNoteAccess(noteId, userId) {
+    try {
+      await this.verifyNoteOwner(noteId, userId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      try {
+        await this.collaborationService.verifyCollaborator(noteId, userId);
+      } catch {
+        throw error;
+      }
     }
   }
 }

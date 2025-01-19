@@ -34,7 +34,12 @@ exports.up = (pgm) => {
       type: 'TEXT',
       notNull: true,
     },
+    owner: {
+      type: 'VARCHAR(50)',
+    },
   });
+
+  pgm.addConstraint('notes', 'fk_notes.owner_users.id', 'FOREIGN KEY(owner) REFERENCES users(id) ON DELETE CASCADE');
 };
 
 /**
@@ -43,5 +48,6 @@ exports.up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 exports.down = (pgm) => {
+  pgm.dropConstraint('notes', 'fk_notes.owner_users.id');
   pgm.dropTable('notes');
 };
