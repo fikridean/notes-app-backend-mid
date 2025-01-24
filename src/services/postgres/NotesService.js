@@ -46,7 +46,7 @@ class NotesService {
     return result.rows.map(mapDBToModel);
   }
 
-  async getNoteById(id, owner) {
+  async getNoteById(id) {
     const query = {
       text: `SELECT notes.*, users.username
       FROM notes
