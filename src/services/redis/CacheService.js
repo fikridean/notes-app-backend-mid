@@ -13,6 +13,12 @@ class CacheService {
     this.client.connect();
   }
 
+  async set(key, value, expirationInSecond = 3600) {
+    await this.client.set(key, value, {
+      EX: expirationInSecond,
+    });
+  }
+
   async get(key) {
     const result = await this.client.get(key);
     if (result === null) throw new Error('Cache tidak ditemukan');

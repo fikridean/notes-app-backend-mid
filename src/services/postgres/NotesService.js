@@ -44,6 +44,7 @@ class NotesService {
       return JSON.parse(result);
     } catch (error) {
       // bila gagal, diteruskan dengan mendapatkan catatan dari database
+      console.log('Menggunakan database');
       const query = {
         text: `SELECT notes.* FROM notes
         LEFT JOIN collaborations ON collaborations.note_id = notes.id
@@ -57,6 +58,8 @@ class NotesService {
 
       // catatan akan disimpan pada cache sebelum fungsi getNotes dikembalikan
       await this.cacheService.set(`notes:${owner}`, JSON.stringify(mappedResult));
+
+      console.log('Catatan berhasil diambil dari database');
 
       return mappedResult;
     }
