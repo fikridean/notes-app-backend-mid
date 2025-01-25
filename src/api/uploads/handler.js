@@ -1,4 +1,3 @@
-
 class UploadsHandler {
   constructor(service, validator) {
     this.service = service;
